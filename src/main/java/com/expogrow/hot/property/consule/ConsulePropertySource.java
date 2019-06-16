@@ -33,11 +33,9 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	private final String rootPath;
 	private final KeyValueClient client;
 	private final long watchIntervalSeconds;
-
-	private final AtomicReference<ImmutableMap<String, Object>> lastState = new AtomicReference<>(null);
 	private final AtomicLong latestIndex = new AtomicLong(0);
-
 	private final List<WatchedUpdateListener> listeners = new CopyOnWriteArrayList<>();
+	private final AtomicReference<ImmutableMap<String, Object>> lastState = new AtomicReference<>(null);
 
 	public ConsulePropertySource(final String rootPath, final KeyValueClient client) {
 		this(rootPath, client, 10, TimeUnit.SECONDS);
@@ -68,13 +66,13 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 		final Map<String, Object> removed = Maps.newHashMap();
 		final Map<String, Object> changed = Maps.newHashMap();
 
-		// added
+		// Property added
 		addAllKeys(Sets.difference(newState.keySet(), previousState.keySet()), newState, added);
 
-		// removed
+		// Property removed
 		addAllKeys(Sets.difference(previousState.keySet(), newState.keySet()), previousState, removed);
 
-		// changed
+		// Property changed
 		addFilteredKeys(Sets.intersection(previousState.keySet(), newState.keySet()), newState, changed,
 				key -> !previousState.get(key).equals(newState.get(key)));
 
@@ -98,9 +96,9 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	protected void fireEvent(final WatchedUpdateResult result) {
-		for (final WatchedUpdateListener l : listeners) {
+		for (final WatchedUpdateListener listener : listeners) {
 			try {
-				l.updateConfiguration(result);
+				listener.updateConfiguration(result);
 			} catch (final Throwable ex) {
 				log.error(() -> "Error invoking WatchedUpdateListener", ex);
 			}
@@ -108,16 +106,16 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	@Override
-	public void addUpdateListener(final WatchedUpdateListener l) {
-		if (l != null) {
-			listeners.add(l);
+	public void addUpdateListener(final WatchedUpdateListener listener) {
+		if (listener != null) {
+			listeners.add(listener);
 		}
 	}
 
 	@Override
-	public void removeUpdateListener(final WatchedUpdateListener l) {
-		if (l != null) {
-			listeners.remove(l);
+	public void removeUpdateListener(final WatchedUpdateListener listener) {
+		if (listener != null) {
+			listeners.remove(listener);
 		}
 	}
 
@@ -132,13 +130,17 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	private ImmutableMap<String, Object> convertToMap(final Response<List<GetValue>> kv) {
+
 		if (kv == null || kv.getValue() == null) {
 			return ImmutableMap.of();
 		}
+
 		final ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+
 		for (final GetValue gv : kv.getValue()) {
 			builder.put(keyFunc(gv), valFunc(gv));
 		}
+
 		return builder.build();
 	}
 
@@ -160,17 +162,19 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	@VisibleForTesting
 	protected void runOnce() {
+
 		try {
+
 			final Response<List<GetValue>> kvals = updateIndex(getRaw(watchParams()));
 			final ImmutableMap<String, Object> full = convertToMap(kvals);
-			final WatchedUpdateResult result;
-			if (lastState.get() == null) {
-				result = WatchedUpdateResult.createFull(full);
-			} else {
-				result = incrementalResult(full, lastState.get());
-			}
+
+			final WatchedUpdateResult result = lastState.get() == null ? WatchedUpdateResult.createFull(full)
+					: incrementalResult(full, lastState.get());
+
 			lastState.set(full);
+
 			fireEvent(result);
+
 		} catch (final Exception e) {
 			log.error(() -> "Error watching path", e);
 		}
