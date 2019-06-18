@@ -18,15 +18,17 @@ public class ConsuleContextInitializer implements ApplicationContextInitializer<
 	private String consuleHost;
 	@Value("${consule.port:8500}")
 	private int consulePort;
-	@Value("${consule.rootPath:app/config}")
+	@Value("${consule.rootPath:app/config/}")
 	private String rootPath;
+	@Value("${spring.application.name:spring-app}")
+	private String appName;
 
 	@Override
 	public void initialize(final AbstractApplicationContext applicationContext) {
 
 		final ConsulClient client = new ConsulClient(consuleHost, consulePort);
 
-		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath, client);
+		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath + appName, client);
 
 		configSource.startAsync();
 

@@ -17,11 +17,12 @@ public class ConsulePropertyConfig {
 	public AbstractConfiguration addApplicationPropertiesSource(
 			@Value("${consule.host:localhsot}") final String consuleHost,
 			@Value("${consule.port:8500}") final int consulePort,
-			@Value("${consule.rootPath:app/config}") final String rootPath) {
+			@Value("${consule.rootPath:app/config/}") final String rootPath,
+			@Value("${spring.application.name:spring-app}") final String appName) {
 
 		final ConsulClient client = new ConsulClient(consuleHost, consulePort);
 
-		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath, client);
+		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath + appName, client);
 
 		configSource.startAsync();
 
