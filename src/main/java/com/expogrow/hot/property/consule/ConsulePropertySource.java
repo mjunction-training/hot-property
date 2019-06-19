@@ -49,11 +49,14 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	private Response<List<GetValue>> getRaw(final QueryParams params) {
+		log.debug("Inside getRaw ");
 		return client.getKVValues(rootPath, params);
 	}
 
 	private Response<List<GetValue>> updateIndex(final Response<List<GetValue>> response) {
+		log.debug("Inside updateIndex ");
 		if (response != null) {
+			log.debug("Inside updateIndex1 ");
 			latestIndex.set(response.getConsulIndex());
 		}
 		return response;
@@ -61,6 +64,8 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	private WatchedUpdateResult incrementalResult(final ImmutableMap<String, Object> newState,
 			final ImmutableMap<String, Object> previousState) {
+
+		log.debug("Inside incrementalResult ");
 
 		final Map<String, Object> added = Maps.newHashMap();
 		final Map<String, Object> removed = Maps.newHashMap();
@@ -81,12 +86,13 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	private void addAllKeys(final Set<String> keys, final ImmutableMap<String, Object> source,
 			final Map<String, Object> dest) {
+		log.debug("Inside addAllKeys ");
 		addFilteredKeys(keys, source, dest, input -> true);
 	}
 
 	private void addFilteredKeys(final Set<String> keys, final ImmutableMap<String, Object> source,
 			final Map<String, Object> dest, final Predicate<String> filter) {
-
+		log.debug("Inside addFilteredKeys ");
 		for (final String key : keys) {
 			if (filter.apply(key)) {
 				dest.put(key, source.get(key));
@@ -96,6 +102,7 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	protected void fireEvent(final WatchedUpdateResult result) {
+		log.debug("Inside fireEvent ");
 		for (final WatchedUpdateListener listener : listeners) {
 			try {
 				listener.updateConfiguration(result);
@@ -107,6 +114,7 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	@Override
 	public void addUpdateListener(final WatchedUpdateListener listener) {
+		log.debug("Inside addUpdateListener ");
 		if (listener != null) {
 			listeners.add(listener);
 		}
@@ -114,6 +122,7 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	@Override
 	public void removeUpdateListener(final WatchedUpdateListener listener) {
+		log.debug("Inside removeUpdateListener ");
 		if (listener != null) {
 			listeners.remove(listener);
 		}
@@ -121,15 +130,19 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	@Override
 	public Map<String, Object> getCurrentData() throws Exception {
+		log.debug("Inside getCurrentData ");
 		return lastState.get();
 	}
 
 	@VisibleForTesting
 	protected long getLatestIndex() {
+		log.debug("Inside getLatestIndex ");
 		return latestIndex.get();
 	}
 
 	private ImmutableMap<String, Object> convertToMap(final Response<List<GetValue>> kv) {
+
+		log.debug("Inside convertToMap ");
 
 		if (kv == null || kv.getValue() == null) {
 			return ImmutableMap.of();
@@ -145,15 +158,20 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	private Object valFunc(final GetValue getValue) {
+		log.debug("Inside valFunc ");
 		return new String(base64().decode(getValue.getValue())).trim();
 	}
 
 	private String keyFunc(final GetValue getValue) {
+		log.debug("Inside keyFunc ");
 		return getValue.getKey().substring(rootPath.length() + 1);
 	}
 
 	@Override
 	protected void run() throws Exception {
+
+		log.debug("Inside run ");
+
 		while (isRunning()) {
 			runOnce();
 		}
@@ -162,6 +180,8 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 
 	@VisibleForTesting
 	protected void runOnce() {
+
+		log.debug("Inside runOnce ");
 
 		try {
 
@@ -181,6 +201,7 @@ public class ConsulePropertySource extends AbstractExecutionThreadService implem
 	}
 
 	private QueryParams watchParams() {
+		log.debug("Inside watchParams ");
 		return new QueryParams(watchIntervalSeconds, latestIndex.get());
 	}
 
