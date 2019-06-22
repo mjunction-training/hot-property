@@ -35,8 +35,11 @@ public class ArchaiusPropertySource extends EnumerablePropertySource<Configurati
 
 	@Override
 	public Object getProperty(final String name) {
+
 		log.debug("Inside getProperty ");
+
 		return getSource().getProperty(name);
+
 	}
 
 }

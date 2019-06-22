@@ -1,46 +1,63 @@
 package com.expogrow.hot.property.consule;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
-
 import org.apache.commons.configuration.AbstractConfiguration;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.refresh.ContextRefresher;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MutablePropertySources;
 
 import com.ecwid.consul.v1.ConsulClient;
 import com.netflix.config.ConcurrentCompositeConfiguration;
 import com.netflix.config.ConfigurationManager;
 import com.netflix.config.DynamicWatchedConfiguration;
+import com.netflix.config.WatchedUpdateResult;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 @Configuration
-public class ConsulePropertyConfig {
-	@Autowired
-	private ConfigurableEnvironment env;
+public class ConsulePropertyConfig
+		implements InitializingBean, ApplicationContextInitializer<AbstractApplicationContext> {
+
+	@Value("${consule.host:127.0.0.1}")
+	private String consuleHost;
+
+	@Value("${consule.port:8500}")
+	private int consulePort;
+
+	@Value("${consule.watchIntervalInSeconds:10}")
+	private long watchIntervalInSeconds;
+
+	@Value("${consule.rootPath:app/config/}")
+	private String rootPath;
+
+	@Value("${spring.application.name:${appName:spring-app}}")
+	private String appName;
 
 	@Autowired
-	private ArchaiusPropertySource propertySource;
+	private AbstractApplicationContext applicationContext;
 
-	@PostConstruct
-	public void init() {
-		env.getPropertySources().addFirst(propertySource);
+	@Autowired
+	private ContextRefresher contextRefresher;
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		initialize(applicationContext);
 	}
 
 	@Bean
-	public static PropertySourcesPlaceholderConfigurer placeHolderConfigurer() {
-		return new PropertySourcesPlaceholderConfigurer();
-	}
+	public ArchaiusPropertySource propertySource() {
 
-	@Bean
-	public ArchaiusPropertySource propertySource(@Value("${consule.host:127.0.0.1}") final String consuleHost,
-			@Value("${consule.port:8500}") final int consulePort,
-			@Value("${consule.watchIntervalInSeconds:10}") final long watchIntervalInSeconds,
-			@Value("${consule.rootPath:app/config/}") final String rootPath,
-			@Value("${spring.application.name:spring-app}") final String appName) {
 		final ConsulClient client = new ConsulClient(consuleHost, consulePort);
 
 		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath + appName, client,
@@ -50,15 +67,73 @@ public class ConsulePropertyConfig {
 
 		final ConcurrentCompositeConfiguration finalConfig = new ConcurrentCompositeConfiguration();
 
-		final AbstractConfiguration configuration = new DynamicWatchedConfiguration(configSource);
+		final AbstractConfiguration configuration = new DynamicWatchedConfiguration(configSource) {
+
+			@Override
+			public void updateConfiguration(final WatchedUpdateResult result) {
+
+				super.updateConfiguration(result);
+
+				if (result == null || !result.hasChanges()) {
+					return;
+				}
+
+				final Set<String> propKeys = new HashSet<>();
+
+				if (null != result.getComplete()) {
+					propKeys.addAll(result.getComplete().keySet());
+				}
+
+				if (null != result.getAdded()) {
+					propKeys.addAll(result.getAdded().keySet());
+				}
+
+				if (null != result.getChanged()) {
+					propKeys.addAll(result.getChanged().keySet());
+				}
+
+				if (null != result.getDeleted()) {
+					propKeys.addAll(result.getDeleted().keySet());
+				}
+
+				if (!propKeys.isEmpty()) {
+					contextRefresher.refresh();
+				}
+			}
+
+		};
 
 		finalConfig.addConfiguration(configuration, "consul-dynamic");
 
-		ConfigurationManager.install(finalConfig);
+		if (ConfigurationManager.isConfigurationInstalled()) {
+
+			ConfigurationManager.loadPropertiesFromConfiguration(finalConfig);
+
+		} else {
+
+			ConfigurationManager.install(finalConfig);
+
+		}
 
 		final ArchaiusPropertySource bridgeSource = new ArchaiusPropertySource("consul-dynamic", configuration);
 
 		return bridgeSource;
+
+	}
+
+	@Override
+	public void initialize(final AbstractApplicationContext applicationContext) {
+
+		log.debug("Inside initialize ");
+
+		final ConfigurableEnvironment environment = applicationContext.getEnvironment();
+
+		final MutablePropertySources propertySources = environment.getPropertySources();
+
+		propertySources.addFirst(propertySource());
+
+		log.debug("Finished initialize ");
+
 	}
 
 }
