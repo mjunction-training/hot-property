@@ -1,0 +1,1 @@
+vault server -dev -config=./vault-config.json
