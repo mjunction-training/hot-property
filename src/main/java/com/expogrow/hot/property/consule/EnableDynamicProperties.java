@@ -7,6 +7,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 
 @Inherited
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Import;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Import(ConsulePropertyConfig.class)
+@ComponentScan(basePackageClasses = DynamicPlaceholderConfigurer.class)
 public @interface EnableDynamicProperties {
 
 }

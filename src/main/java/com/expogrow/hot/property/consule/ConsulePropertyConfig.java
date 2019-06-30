@@ -1,8 +1,9 @@
 package com.expogrow.hot.property.consule;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.configuration.AbstractConfiguration;
 import org.springframework.beans.factory.InitializingBean;
@@ -44,6 +45,8 @@ public class ConsulePropertyConfig
 	@Value("${spring.application.name:${appName:spring-app}}")
 	private String appName;
 
+	private static final String _CONSULE_CONFIG = "consul-dynamic";
+
 	@Autowired
 	private AbstractApplicationContext applicationContext;
 
@@ -55,13 +58,28 @@ public class ConsulePropertyConfig
 		initialize(applicationContext);
 	}
 
+	@Override
+	public void initialize(final AbstractApplicationContext applicationContext) {
+
+		log.debug("Inside initialize ");
+
+		final ConfigurableEnvironment environment = applicationContext.getEnvironment();
+
+		final MutablePropertySources propertySources = environment.getPropertySources();
+
+		propertySources.addFirst(propertySource());
+
+		log.debug("Finished initialize ");
+
+	}
+
 	@Bean
 	public ArchaiusPropertySource propertySource() {
 
 		final ConsulClient client = new ConsulClient(consuleHost, consulePort);
 
 		final ConsulePropertySource configSource = new ConsulePropertySource(rootPath + appName, client,
-				watchIntervalInSeconds, TimeUnit.SECONDS);
+				watchIntervalInSeconds, SECONDS);
 
 		configSource.startAsync();
 
@@ -103,7 +121,7 @@ public class ConsulePropertyConfig
 
 		};
 
-		finalConfig.addConfiguration(configuration, "consul-dynamic");
+		finalConfig.addConfiguration(configuration, _CONSULE_CONFIG);
 
 		if (ConfigurationManager.isConfigurationInstalled()) {
 
@@ -115,24 +133,7 @@ public class ConsulePropertyConfig
 
 		}
 
-		final ArchaiusPropertySource bridgeSource = new ArchaiusPropertySource("consul-dynamic", configuration);
-
-		return bridgeSource;
-
-	}
-
-	@Override
-	public void initialize(final AbstractApplicationContext applicationContext) {
-
-		log.debug("Inside initialize ");
-
-		final ConfigurableEnvironment environment = applicationContext.getEnvironment();
-
-		final MutablePropertySources propertySources = environment.getPropertySources();
-
-		propertySources.addFirst(propertySource());
-
-		log.debug("Finished initialize ");
+		return new ArchaiusPropertySource(_CONSULE_CONFIG, configuration);
 
 	}
 
