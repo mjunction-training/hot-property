@@ -1,1 +1,0 @@
-{"Token":"","Service":{"ID":"vault:192.168.56.1:8200","Service":"vault","Tags":["active"],"Address":"192.168.56.1","Meta":null,"Port":8200,"Weights":{"Passing":1,"Warning":1},"EnableTagOverride":false,"ProxyDestination":"","Proxy":{},"Connect":{},"CreateIndex":0,"ModifyIndex":0}}
